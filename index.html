@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>FreightWise Programming Test</title>
+
+    <script>
+        'use strict';
+
+        /**
+         * Software Developer test.
+         *
+         * Doing research and making API calls are an important part of what we do at FreightWise.  This test will
+         * demonstrate your abilities to:
+         *
+         * - Make an API call
+         * - Research an API
+         * - Do basic DOM manipulation
+         * - Parse data
+         * - Handle errors
+         * - Be creative
+         *
+         * Feel free to ask any questions you may have.  Use a lot of comments, and explain why you are doing things.
+         * Don't spend more than 1-2 hours on it - we aren't expecting a finished product, but it should work and look
+         * nice.  Feel free to use any third party libraries, and if you do so, explain why you used them instead of
+         * built in browser APIs.
+         *
+         * Instructions:
+         * - Use the axios (https://github.com/axios/axios) request library to make an API call to the OpenWeatherMap
+         *   API for Current Weather Data using this API key:  25e989bd41e3e24ce13173d8126e0fd6
+         *   We've already imported this library to get you started.
+         * - Use either async/await or Promises.
+         * - Get the weather for Brentwood, TN, and write it to the DOM using the `setResults` method below.  Be
+         *   creative and make it look nice.
+         * - Handle errors and use the `setError` method below to display the error.  Also make it look nice.
+         * - If you find any mistakes in the test, fix them, and leave a comment about what you fixed and why.
+         * - Make sure your code is readable and maintainable.
+         * - Use plenty of descriptive comments.
+         * - Make sure your code runs in the latest version of Google Chrome and Firefox (ES6 is allowed).
+         * - Make your code live (GitHub with GitHub pages works nice).
+         * - Send a link to your finished test to dev-team-jobs@freightwisellc.com.
+         *
+         * Feel free to add your own twist to it (completely optional).  Here are a few ideas:
+         * - Sign up for NewsAPI.org and get the Top Headlines and show them along with the weather.
+         * - Use the browser location API to get the user's current location, and show that location's weather.
+         * - Show a satellite map of the weather in Brentwood.
+         * - Request a user's phone number and send them an SMS with the weather.
+         */
+
+        //  required apikeys
+        // its not secure apikey in client side but just for this test
+        const APIKEY = '25e989bd41e3e24ce13173d8126e0fd6' 
+        const NEWSAPIKEY = 'trRKrPWEXu-aCm8D9wZXfJGMV8k-wgpeesn9I98EmKE'
+
+        class Test {
+            constructor() {
+                this.testResults = document.getElementsByClassName('test-results')[0];
+                console.log(this.testResults)
+            }
+
+            async run() {
+                console.log(new Date().toISOString(), '[Test]', 'Running the test');
+
+                try { 
+                    let wetherresp,newsresp,weatherdom,newsdom,resultarr = []
+
+                    // calling weather and news api for given location 
+                    const apicall = async (lat,lon,no)=>{
+                        resultarr = []
+
+                        // api call for weather
+                        wetherresp = await axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${APIKEY}&units=metric`);
+                       
+                        // api call for news based on location
+                        // i choose not to use newsapi.org because we cant use there api from client side in developer plan
+                        newsresp = await axios.get(`https://api.newscatcherapi.com/v2/search?q=${wetherresp.data.name}`,{headers:{'x-api-key':NEWSAPIKEY}})
+                        console.log(newsresp)
+                        // https://newsdata.io/api/1/news?apikey=${NEWSAPIKEY}&q=${wetherresp.data.name}
+                        // extracting necessary information from weather api response
+                        resultarr.push(wetherresp.data.name)
+                        resultarr.push(wetherresp.data.main.temp)
+                        resultarr.push(wetherresp.data.main.temp_max)
+                        resultarr.push(wetherresp.data.main.temp_min)
+                        resultarr.push(wetherresp.data.main.humidity)
+                        resultarr.push(wetherresp.data.weather[0].description)
+                        resultarr.push(wetherresp.data.wind.speed)
+
+                        // adding dom elements to print result
+                        weatherdom =""
+                        for(let a of resultarr){
+                            weatherdom += `<td>${a}</td>`
+                        }
+
+                        // creating news pointer cell to show and hide news row
+                        weatherdom += `<td style="text-decoration:underline;cursor:pointer;"><a onclick=unblock(${no})>news</a></td>`
+                        newsdom =""
+                        if(!newsresp.data.articles || newsresp.data.articles.length<1) return [weatherdom,newsdom]
+                        for(let b of newsresp.data.articles){
+                            newsdom +=`<p>${b.summary}</p>`
+                        }
+                        return [weatherdom,newsdom]
+                    }
+
+                    // getting coordinate of user location 
+                    function getLocation(callback) {
+                        document.getElementsByClassName('addresult2')[0].style.display="none"
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(callback);
+                        } else { 
+                            return
+                        }
+                    }
+
+                    // getting value from field
+                    let wetherLocation = document.getElementsByClassName("input-field")[0].value 
+                    
+                    // getting coordinate code for given location by calling external api
+                    let coderesp = await axios.get(`https://api.openweathermap.org/geo/1.0/direct?q=${wetherLocation}&limit=1&appid=${APIKEY}`); 
+                    
+                    // checking the returned result is valid or not and call wether api if valid
+                    if(coderesp.data.length<1) throw new Error("invalid location")
+                    let res1 = await apicall(coderesp.data[0].lat,coderesp.data[0].lon,1)
+                    
+                    // calling setResult method for result got from api
+                    this.setResults(res1,'1')
+                    
+                    // calling weather and news api based on userLocation
+                    getLocation(async (position)=>{
+                        // calling weather and news api for given coordinate
+                        let res2 = await apicall(position.coords.latitude,position.coords.longitude,2)
+                        this.setResults(res2,'2')
+                    })
+
+                } catch (err) {
+                    //catching the error and createing tag to displaying
+                    this.setError(`<p class="errorinfo">${err}</p>`)
+                }
+            }
+
+            setError(message) {
+                // adding error tag to body
+                this.testResults.innerHTML = (message || '').toString();
+                this.testResults.style.display = "block"
+                console.log(this.testResults)
+            }
+            
+            setResults(results,no) {
+                // adding result to body
+                document.getElementsByClassName("info")[0].style.display=""
+                let weatherhtml = document.getElementsByClassName('addresult'+no)[0]
+                weatherhtml.style.display=""
+                console.log('addresult'+no)
+                weatherhtml.innerHTML = results[0]
+                this.testResults.style.display = "block"
+                let newshtml = document.getElementsByClassName('addnews'+no)[0]
+                newshtml.innerHTML = results[1]
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color:#c4c4c4;
+        }
+
+        .input-field {
+            float: left;
+            width: 60%;
+            border-radius: 7px;
+            border-style: groove;
+            margin: 10px;
+            padding: 10px;
+            font-size: medium;
+            color: #4b4b4b;
+            border-color: #dddddd;
+        }
+
+        .button-container {
+            text-align: center;
+            float: left;
+            cursor:pointer;
+        }
+
+        .button-container > button {
+            margin: 10px;
+            padding: 11px;
+            color: #dddddd;
+            border: none;
+            background-color: #4b4b4b;
+            border-radius: 7px;
+            transition: all 200ms ease-in-out;
+            font-size: medium;
+            cursor:pointer;
+        }
+
+        .test-results {
+            width:100%;
+            text-align: center;
+            display: none;
+            
+        }
+        .info{
+            width: 95%;
+            border-collapse: collapse;
+            color: #4b4b4b;
+            margin: 10px;
+            
+        }
+        td {
+            border:0.5px solid #4b4b4b;
+            text-align: left;
+            padding: 8px;
+        }
+        th  {
+            border: 0.5px solid black;
+            color: #dddddd;
+            background-color: #4b4b4b;
+            text-align: left;
+            padding: 8px;
+        }
+        .errorinfo {
+            width: 80%;
+            text-align: left;
+            background-color: #4b4b4b;
+            color: #dddddd;
+            font-size: medium;
+            border-radius: 7px;
+            padding: 10px;
+        }
+
+    </style>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <!-- creating input tag to get location info from user default is Brentwood-->
+    <input type="text" class="input-field" value="Brentwood">
+
+    <div class="button-container"></div><br><br><br><br>
+
+    <div class="test-results">
+        <!-- creating table to display result -->
+        <table class = "info" style="display: none;">
+            <tr>
+                <th>place</th>
+                <th>temp</th>
+                <th>tempMax</th>
+                <th>tempMin</th>
+                <th>humidity</th>
+                <th>weather</th>
+                <th>wind</th>
+                <th>more</th>
+            </tr>
+            <tr class = "addresult1" style="display: none;"></tr>
+            
+            <!-- adding row to table which shows news result  -->
+            <tr><td class = "addnews1" style="display: none;" colspan="8"></td></tr>
+            <tr class = "addresult2" style="display: none;"></tr>
+
+            <!-- adding row to table which shows news result  -->
+            <tr><td class = "addnews2" style="display: none;" colspan="8"></td></tr>
+
+        </table> 
+    </div>
+
+    <script>
+        'use strict';
+        
+        // function to hide and show the news row
+        let show = true
+        function unblock(no){    
+            document.getElementsByClassName('addnews'+no)[0].style.display = show == true ? "" : "none"
+            show = !show
+        }
+
+        function addButtonForTest(context, test) {
+            let testButton = document.createElement('button');
+
+            testButton.type = 'button';
+            testButton.innerText = 'Search';
+            testButton.onclick = () => test.run();
+
+            context.appendChild(testButton);
+
+            return testButton;
+        }
+
+        const test = new Test();
+        const buttonContainer = document.getElementsByClassName('button-container')[0];
+        console.log(buttonContainer)
+
+        addButtonForTest(buttonContainer, test);
+    </script>
+</body>
+</html>
